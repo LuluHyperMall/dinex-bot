@@ -3,52 +3,77 @@ import { cn } from "@/lib/utils";
 
 type Status = "idle" | "listening" | "speaking" | "thinking";
 
-export function RajFace({ status, name = "Raj" }: { status: Status; name?: string }) {
+const LABEL: Record<Status, string> = {
+  idle: "Boliye, main sun raha hoon",
+  listening: "Sun raha hoon…",
+  thinking: "Soch raha hoon…",
+  speaking: "Bol raha hoon…",
+};
+
+// Cute screen-robot face (Dinex). Expressions change with status.
+export function RajFace({ status, name = "Dinex" }: { status: Status; name?: string }) {
+  const glow =
+    status === "listening" ? "bg-sky-300/50" : status === "speaking" ? "bg-emerald-300/50" : status === "thinking" ? "bg-amber-300/40" : "bg-orange-200/40";
+
   return (
     <div className="flex flex-col items-center">
       <div className="relative">
-        {/* outer ripple */}
-        <div
-          className={cn(
-            "absolute inset-0 rounded-full",
-            status === "listening" && "animate-ping bg-sky-500/20",
-            status === "speaking" && "animate-ping bg-green-500/20"
-          )}
-        />
-        <div
-          className={cn(
-            "relative h-44 w-44 rounded-full raj-orb flex items-center justify-center transition-all duration-300",
-            status === "idle" && "animate-raj-pulse",
-            status === "listening" && "listening scale-105",
-            status === "speaking" && "speaking",
-            status === "thinking" && "opacity-90"
-          )}
-        >
-          {/* eyes + mouth */}
-          <div className="flex flex-col items-center gap-3">
-            <div className="flex gap-6">
-              <span className={cn("block h-5 w-5 rounded-full bg-white/95", status === "thinking" && "animate-pulse")} />
-              <span className={cn("block h-5 w-5 rounded-full bg-white/95", status === "thinking" && "animate-pulse")} />
-            </div>
-            <div
-              className={cn(
-                "h-2 rounded-full bg-white/90 transition-all",
-                status === "speaking" ? "w-12 h-5 animate-pulse" : "w-10",
-                status === "listening" && "w-6"
-              )}
-            />
+        <div className={cn("absolute -inset-4 rounded-[2.5rem] blur-2xl transition-colors", glow)} />
+        {/* robot head */}
+        <div className="relative rounded-[2.2rem] bg-gradient-to-b from-white to-[#efe9e0] p-2.5 shadow-[0_20px_50px_-15px_rgba(0,0,0,0.4)]">
+          {/* face screen */}
+          <div className="flex h-36 w-48 items-center justify-center rounded-[1.7rem] bg-[#14161b]">
+            <Face status={status} />
           </div>
         </div>
       </div>
-      <div className="mt-5 text-center">
-        <div className="text-2xl font-bold tracking-tight">{name}</div>
-        <div className="text-sm text-white/50">
-          {status === "idle" && "Tap the mic & talk to me"}
-          {status === "listening" && "Sun raha hoon… 🎙️"}
-          {status === "thinking" && "Soch raha hoon…"}
-          {status === "speaking" && "Bol raha hoon…"}
-        </div>
+      <div className="mt-4 text-center">
+        <div className="text-2xl font-black tracking-tight text-[#2b2b2b]">{name}</div>
+        <div className="text-sm text-[#8b8378]">{LABEL[status]}</div>
       </div>
     </div>
+  );
+}
+
+function Face({ status }: { status: Status }) {
+  return (
+    <svg width="150" height="92" viewBox="0 0 150 92" className="overflow-visible">
+      {/* eyes */}
+      {status === "idle" ? (
+        // happy curved eyes  ^   ^
+        <>
+          <path d="M28 44 q12 -20 24 0" stroke="white" strokeWidth="7" strokeLinecap="round" fill="none" />
+          <path d="M98 44 q12 -20 24 0" stroke="white" strokeWidth="7" strokeLinecap="round" fill="none" />
+        </>
+      ) : status === "thinking" ? (
+        // looking-up squint
+        <>
+          <rect x="32" y="34" width="20" height="8" rx="4" fill="white" />
+          <rect x="98" y="34" width="20" height="8" rx="4" fill="white" />
+        </>
+      ) : (
+        // round alert eyes (listening / speaking) with subtle blink-ready shape
+        <>
+          <circle cx="42" cy="40" r="11" fill="white" className={status === "listening" ? "animate-pulse" : ""} />
+          <circle cx="108" cy="40" r="11" fill="white" className={status === "listening" ? "animate-pulse" : ""} />
+        </>
+      )}
+
+      {/* mouth */}
+      {status === "speaking" ? (
+        <ellipse cx="75" cy="70" rx="16" ry="9" fill="white" className="origin-center animate-raj-pulse" />
+      ) : status === "thinking" ? (
+        <>
+          <circle cx="64" cy="70" r="3.2" fill="white" className="animate-pulse" />
+          <circle cx="75" cy="70" r="3.2" fill="white" className="animate-pulse" />
+          <circle cx="86" cy="70" r="3.2" fill="white" className="animate-pulse" />
+        </>
+      ) : status === "listening" ? (
+        <circle cx="75" cy="70" r="5" fill="white" />
+      ) : (
+        // idle smile
+        <path d="M55 66 q20 18 40 0" stroke="white" strokeWidth="6" strokeLinecap="round" fill="none" />
+      )}
+    </svg>
   );
 }

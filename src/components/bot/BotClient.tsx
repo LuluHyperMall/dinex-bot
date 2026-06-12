@@ -332,30 +332,28 @@ export function BotClient({ tableNumber }: { tableNumber: number }) {
     ? "listening"
     : "idle";
 
-  const waiterName = settings.aiWaiterName || "Dinex Bot";
+  const waiterName = settings.aiWaiterName || "Dinex";
+  const lastSaid = [...messages].reverse().find((m) => m.role === "assistant")?.content || "";
 
   // ── WAKE SCREEN — tap anywhere to activate ──────────────────────
   if (!live.connected && !ended) {
     return (
       <div
         onClick={() => !live.connecting && startLive()}
-        className="bot-bg flex min-h-screen cursor-pointer flex-col items-center justify-center px-6 text-center text-white"
+        className="dinex-bg flex min-h-screen cursor-pointer flex-col items-center justify-center px-6 text-center"
       >
         <RajFace status={live.connecting ? "thinking" : "idle"} name={waiterName} />
-        <p className="mt-6 text-xs uppercase tracking-[0.35em] text-white/40">{settings.restaurantName}</p>
-        {live.connecting ? (
-          <p className="mt-8 animate-pulse text-2xl font-bold text-sky-300">Jaag raha hoon…</p>
-        ) : (
-          <>
-            <p className="mt-8 animate-pulse text-3xl font-black text-primary">👆 Tap to wake me</p>
-            <p className="mt-3 text-white/50">
-              Tap karke shuru karo — phir <b className="text-white/80">🎤 button daba ke</b> boliye, chhodo to bhej jayega
-            </p>
-          </>
-        )}
-        {liveError && (
-          <p className="mt-6 max-w-xs rounded-lg bg-red-500/15 px-4 py-2 text-sm text-red-300">{liveError}</p>
-        )}
+        <div className="dinex-card mt-7 max-w-sm rounded-3xl px-6 py-5">
+          <p className="text-lg font-bold text-[#2b2b2b]">Namaste! 👋</p>
+          <p className="mt-1 text-[#5b554c]">Main {waiterName} hoon, aapka AI waiter.</p>
+          {live.connecting ? (
+            <p className="mt-3 animate-pulse font-bold text-amber-600">Jaag raha hoon…</p>
+          ) : (
+            <p className="mt-3 animate-pulse text-lg font-black text-orange-600">👆 Tap anywhere to start</p>
+          )}
+        </div>
+        <p className="mt-4 text-xs uppercase tracking-[0.3em] text-[#a89f92]">{settings.restaurantName} · Table {tableNumber}</p>
+        {liveError && <p className="mt-4 max-w-xs rounded-lg bg-red-100 px-4 py-2 text-sm text-red-600">{liveError}</p>}
       </div>
     );
   }
@@ -363,14 +361,14 @@ export function BotClient({ tableNumber }: { tableNumber: number }) {
   // ── ENDED SCREEN ────────────────────────────────────────────────
   if (ended) {
     return (
-      <div className="bot-bg flex min-h-screen flex-col items-center justify-center text-center text-white">
+      <div className="dinex-bg flex min-h-screen flex-col items-center justify-center text-center">
         <div className="text-7xl">🙏</div>
-        <h2 className="mt-4 text-4xl font-black">Dhanyavaad!</h2>
-        <p className="mt-2 text-white/60">Aapka session end ho gaya, table ab free hai.</p>
-        <p className="mt-1 text-white/40">{settings.restaurantName} — phir aaiyega!</p>
+        <h2 className="mt-4 text-4xl font-black text-[#2b2b2b]">Dhanyavaad!</h2>
+        <p className="mt-2 text-[#5b554c]">Aapka session end ho gaya, table ab free hai.</p>
+        <p className="mt-1 text-[#a89f92]">{settings.restaurantName} — phir aaiyega!</p>
         <button
           onClick={() => window.location.reload()}
-          className="mt-8 rounded-full bg-primary px-8 py-3 text-lg font-bold text-primary-foreground"
+          className="mt-8 rounded-full bg-orange-500 px-8 py-3 text-lg font-bold text-white shadow-lg"
         >
           Naya order shuru karein
         </button>
@@ -379,41 +377,36 @@ export function BotClient({ tableNumber }: { tableNumber: number }) {
   }
 
   // ── ACTIVE — hands-free live conversation ───────────────────────
-  const statusText = live.rajSpeaking
-    ? `${waiterName} bol raha hai…`
-    : live.userSpeaking
-    ? "🎙️ Sun raha hoon…"
-    : "Boliye, main sun raha hoon";
-
   return (
-    <div className="bot-bg flex min-h-screen flex-col text-white">
-      <header className="flex items-center justify-between border-b border-white/10 px-5 py-3">
+    <div className="dinex-bg flex min-h-screen flex-col">
+      <header className="flex items-center justify-between border-b border-black/5 px-5 py-3">
         <div className="flex items-center gap-2.5">
           <div
             className={cn(
               "h-3 w-3 rounded-full",
-              live.rajSpeaking ? "bg-green-400" : live.userSpeaking ? "animate-pulse bg-sky-400" : "bg-primary"
+              live.rajSpeaking ? "bg-emerald-500" : live.userSpeaking ? "animate-pulse bg-sky-500" : "bg-orange-400"
             )}
           />
-          <span className="font-bold">{settings.restaurantName}</span>
-          <span className="text-white/40">· Table {tableNumber}</span>
+          <span className="font-bold text-[#2b2b2b]">{settings.restaurantName}</span>
+          <span className="text-[#a89f92]">· Table {tableNumber}</span>
         </div>
         <button
           onClick={live.disconnect}
-          className="rounded-full border border-white/15 px-3 py-1 text-xs text-white/50 hover:bg-white/10"
+          className="rounded-full border border-black/10 px-3 py-1 text-xs text-[#8b8378] hover:bg-black/5"
         >
           End
         </button>
       </header>
 
-      <div className="grid flex-1 gap-6 p-5 lg:grid-cols-[280px_1fr]">
-        {/* left: orb + status + last few lines */}
+      <div className="grid flex-1 gap-6 p-5 lg:grid-cols-[300px_1fr]">
+        {/* left: robot face + live speech bubble */}
         <div className="flex flex-col items-center">
-          <div className="mt-4">
+          <div className="mt-2">
             <RajFace status={status as any} name={waiterName} />
           </div>
-          <p className="mt-5 h-6 text-center text-base text-white/60">{statusText}</p>
-          <p className="mt-2 text-center text-xs text-white/30">Bas boliye — main sun raha hoon 🎙️</p>
+          <div className="dinex-card mt-5 min-h-[70px] w-full rounded-2xl px-4 py-3 text-center text-[15px] leading-snug text-[#3a352e] animate-fade-in">
+            {lastSaid || "Boliye, main sun raha hoon 🎙️"}
+          </div>
         </div>
 
         {/* right: visual context (cards / order / bill / QR) */}
@@ -470,13 +463,13 @@ function ContextScreen({
   if (mode === ScreenMode.DISHES && dishes.length) {
     return (
       <div>
-        {cardTitle && <h2 className="mb-4 text-2xl font-bold">{cardTitle}</h2>}
+        {cardTitle && <h2 className="mb-4 text-2xl font-bold text-[#2b2b2b]">{cardTitle}</h2>}
         <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
           {dishes.map((d: any, i: number) => (
             <DishCard key={d.id} dish={d} index={i} />
           ))}
         </div>
-        <p className="mt-5 text-center text-white/40">Boliye “pehla wala add karo” ya “dusra wala chahiye” 🎙️</p>
+        <p className="mt-5 text-center text-[#8b8378]">Boliye “pehla wala add karo” ya “dusra wala chahiye” 🎙️</p>
       </div>
     );
   }
@@ -484,13 +477,13 @@ function ContextScreen({
   if (mode === ScreenMode.COMBOS && combos.length) {
     return (
       <div>
-        {cardTitle && <h2 className="mb-4 text-2xl font-bold">{cardTitle}</h2>}
+        {cardTitle && <h2 className="mb-4 text-2xl font-bold text-[#2b2b2b]">{cardTitle}</h2>}
         <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
           {combos.map((c: any, i: number) => (
             <ComboCard key={c.id} combo={c} index={i} />
           ))}
         </div>
-        <p className="mt-5 text-center text-white/40">Boliye “ye combo add karo” 🎙️</p>
+        <p className="mt-5 text-center text-[#8b8378]">Boliye “ye combo add karo” 🎙️</p>
       </div>
     );
   }
@@ -502,17 +495,17 @@ function ContextScreen({
     return (
       <div className="grid gap-6 lg:grid-cols-2">
         <PaymentPanel payload={payment} />
-        <div className="glass rounded-2xl p-6">
+        <div className="dinex-card rounded-2xl p-6">
           {paymentDone ? (
             <div className="text-center">
               <div className="text-6xl">✅</div>
-              <h3 className="mt-3 text-2xl font-black">Payment Successful</h3>
-              <p className="mt-2 text-white/60">Raj se kaho <b>“haan, session end karo”</b> jab khana ho jaaye — table free ho jayega.</p>
+              <h3 className="mt-3 text-2xl font-black text-[#2b2b2b]">Payment Successful</h3>
+              <p className="mt-2 text-[#5b554c]">Boliye <b>“haan, session end karo”</b> jab khana ho jaaye — table free ho jayega.</p>
             </div>
           ) : (
             <>
-              <h3 className="text-lg font-bold">Demo Payment</h3>
-              <p className="mt-1 text-sm text-white/50">Choose a method to simulate payment.</p>
+              <h3 className="text-lg font-bold text-[#2b2b2b]">Demo Payment</h3>
+              <p className="mt-1 text-sm text-[#8b8378]">Choose a method to simulate payment.</p>
               <div className="mt-4 grid grid-cols-2 gap-3">
                 <Button onClick={() => onPay("UPI")} className="h-14">📲 UPI</Button>
                 <Button onClick={() => onPay("CARD")} variant="secondary" className="h-14">💳 Card</Button>

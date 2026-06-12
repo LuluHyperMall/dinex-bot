@@ -28,6 +28,9 @@ export function useRealtime(cbs: Cbs) {
   const pcRef = useRef<RTCPeerConnection | null>(null);
   const dcRef = useRef<RTCDataChannel | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const micTrackRef = useRef<MediaStreamTrack | null>(null);
+  const unmuteTimerRef = useRef<any>(null);
+  const watchdogRef = useRef<any>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const sessionIdRef = useRef<string>("");
   const tableRef = useRef<number>(1);
@@ -37,6 +40,26 @@ export function useRealtime(cbs: Cbs) {
   const send = (obj: any) => {
     const dc = dcRef.current;
     if (dc && dc.readyState === "open") dc.send(JSON.stringify(obj));
+  };
+
+  // ── Auto mic gating: mute the mic while the bot is talking, re-open it shortly
+  // after the bot's audio actually stops. (AEC is the 1st line of defense; this
+  // hard-mute is the guaranteed 2nd line — bot can never hear itself → no loop.)
+  const muteMic = () => {
+    clearTimeout(unmuteTimerRef.current);
+    if (micTrackRef.current) micTrackRef.current.enabled = false;
+    // deadlock breaker: if "audio stopped" never arrives, force-open after 12s
+    clearTimeout(watchdogRef.current);
+    watchdogRef.current = setTimeout(() => {
+      if (micTrackRef.current) micTrackRef.current.enabled = true;
+    }, 12000);
+  };
+  const openMicSoon = (delay = 350) => {
+    clearTimeout(watchdogRef.current);
+    clearTimeout(unmuteTimerRef.current);
+    unmuteTimerRef.current = setTimeout(() => {
+      if (micTrackRef.current) micTrackRef.current.enabled = true;
+    }, delay);
   };
 
   const runToolCall = useCallback(async (toolName: string, callId: string, argsStr: string) => {
@@ -89,10 +112,16 @@ export function useRealtime(cbs: Cbs) {
         case "response.created":
         case "output_audio_buffer.started":
           setRajSpeaking(true);
+          muteMic(); // bot starting/started talking → mic OFF
           break;
         case "output_audio_buffer.stopped":
+          setRajSpeaking(false);
+          openMicSoon(350); // bot's audio actually finished → mic back ON
+          break;
         case "response.done":
           setRajSpeaking(false);
+          // safety unmute in case "output_audio_buffer.stopped" wasn't delivered
+          openMicSoon(1200);
           break;
         case "response.function_call_arguments.done":
           runToolCall(e.name, e.call_id, e.arguments);
@@ -163,7 +192,10 @@ export function useRealtime(cbs: Cbs) {
         if (deviceId) audioConstraints.deviceId = { exact: deviceId } as any;
         const stream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints });
         streamRef.current = stream;
-        stream.getTracks().forEach((t) => pc.addTrack(t, stream));
+        stream.getTracks().forEach((t) => {
+          pc.addTrack(t, stream);
+          if (t.kind === "audio") micTrackRef.current = t;
+        });
 
         const dc = pc.createDataChannel("oai-events");
         dcRef.current = dc;
@@ -229,6 +261,9 @@ export function useRealtime(cbs: Cbs) {
   );
 
   const disconnect = useCallback(() => {
+    clearTimeout(unmuteTimerRef.current);
+    clearTimeout(watchdogRef.current);
+    micTrackRef.current = null;
     try {
       dcRef.current?.close();
     } catch {}
