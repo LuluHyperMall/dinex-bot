@@ -321,7 +321,7 @@ export function BotClient({ tableNumber }: { tableNumber: number }) {
   const status = live.connected
     ? live.rajSpeaking
       ? "speaking"
-      : live.talking
+      : live.userSpeaking
       ? "listening"
       : "idle"
     : thinking || transcribing
@@ -378,12 +378,12 @@ export function BotClient({ tableNumber }: { tableNumber: number }) {
     );
   }
 
-  // ── ACTIVE — live conversation (push-to-talk) ───────────────────
-  const statusText = live.talking
-    ? "🔴 Sun raha hoon… boliye"
-    : live.rajSpeaking
+  // ── ACTIVE — hands-free live conversation ───────────────────────
+  const statusText = live.rajSpeaking
     ? `${waiterName} bol raha hai…`
-    : "Button daba ke boliye 👇";
+    : live.userSpeaking
+    ? "🎙️ Sun raha hoon…"
+    : "Boliye, main sun raha hoon";
 
   return (
     <div className="bot-bg flex min-h-screen flex-col text-white">
@@ -412,47 +412,8 @@ export function BotClient({ tableNumber }: { tableNumber: number }) {
           <div className="mt-4">
             <RajFace status={status as any} name={waiterName} />
           </div>
-          <p className="mt-4 h-5 text-center text-sm text-white/50">{statusText}</p>
-
-          {/* HOLD TO TALK — mic only live while held (no self-talk possible) */}
-          <button
-            onPointerDown={(e) => {
-              e.preventDefault();
-              if (!live.rajSpeaking) live.startTalking();
-            }}
-            onPointerUp={(e) => {
-              e.preventDefault();
-              if (live.talking) live.stopTalking();
-            }}
-            onPointerLeave={() => {
-              if (live.talking) live.stopTalking();
-            }}
-            disabled={live.rajSpeaking}
-            className={cn(
-              "mt-5 select-none rounded-full px-8 py-5 text-lg font-bold shadow-lg transition-all touch-none",
-              live.talking
-                ? "scale-105 bg-red-600 animate-pulse"
-                : live.rajSpeaking
-                ? "bg-white/10 text-white/40"
-                : "bg-primary text-primary-foreground hover:bg-primary/90"
-            )}
-          >
-            {live.talking ? "🎙️ Bol rahe ho… (chhodo to bhejo)" : live.rajSpeaking ? "Dinex bol raha hai…" : "🎤 Hold karke boliye"}
-          </button>
-
-          <div className="mt-6 w-full space-y-2">
-            {messages.slice(-3).map((m, i) => (
-              <div
-                key={i}
-                className={cn(
-                  "rounded-2xl px-4 py-2 text-sm animate-fade-in",
-                  m.role === "user" ? "bg-sky-500/15 text-right" : "bg-white/5"
-                )}
-              >
-                {m.content}
-              </div>
-            ))}
-          </div>
+          <p className="mt-5 h-6 text-center text-base text-white/60">{statusText}</p>
+          <p className="mt-2 text-center text-xs text-white/30">Bas boliye — main sun raha hoon 🎙️</p>
         </div>
 
         {/* right: visual context (cards / order / bill / QR) */}
