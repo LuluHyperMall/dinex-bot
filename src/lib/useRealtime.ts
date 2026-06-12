@@ -219,8 +219,14 @@ export function useRealtime(cbs: Cbs) {
             audio: { input: { transcription: { model: "whisper-1" }, turn_detection: null } },
           },
         });
-        // greet immediately
-        send({ type: "response.create", response: { instructions: "Greet the guest warmly in one short Hinglish line and ask veg ya non-veg, kya mood hai." } });
+        // greet immediately — exact short line, nothing more
+        send({
+          type: "response.create",
+          response: {
+            instructions:
+              "Say ONLY this warmly in Hinglish, nothing else: 'Namaste, kaise hain aap? Chowzy mein aapka swagat hai — aap veg khayenge ya non-veg?'",
+          },
+        });
       };
 
       const offer = await pc.createOffer();
