@@ -141,10 +141,14 @@ export function useRealtime(cbs: Cbs) {
         const pc = new RTCPeerConnection();
         pcRef.current = pc;
 
-        // remote audio (bot voice) — rendered by the browser so AEC can cancel it
-        const audio = new Audio();
+        // remote audio (bot voice) — rendered by the browser so AEC can cancel it.
+        // Attach to the DOM + playsInline so mobile browsers reliably play it.
+        const audio = (audioRef.current ||= document.createElement("audio"));
         audio.autoplay = true;
-        audioRef.current = audio;
+        (audio as any).playsInline = true;
+        audio.setAttribute("playsinline", "");
+        audio.style.display = "none";
+        if (!audio.isConnected) document.body.appendChild(audio);
         pc.ontrack = (ev) => {
           audio.srcObject = ev.streams[0];
           audio.play().catch(() => {});
