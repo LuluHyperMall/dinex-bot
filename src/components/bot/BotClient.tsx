@@ -332,173 +332,108 @@ export function BotClient({ tableNumber }: { tableNumber: number }) {
     ? "listening"
     : "idle";
 
-  return (
-    <div className="bot-bg min-h-screen text-white">
-      {/* top bar */}
-      <div className="flex items-center justify-between border-b border-white/10 px-6 py-3">
-        <div className="flex items-center gap-2">
-          <div className="h-3 w-3 rounded-full bg-primary" />
-          <span className="font-bold">{settings.restaurantName}</span>
-          <span className="text-white/40">• Table {tableNumber}</span>
-        </div>
-        <div className="flex items-center gap-3 text-xs text-white/40">
-          {engine && <span>brain: {engine}</span>}
-          {!voice.supported && <span className="text-amber-400">mic not supported — type below</span>}
-        </div>
+  const waiterName = settings.aiWaiterName || "Dinex Bot";
+
+  // ── WAKE SCREEN — tap anywhere to activate ──────────────────────
+  if (!live.connected && !ended) {
+    return (
+      <div
+        onClick={() => !live.connecting && startLive()}
+        className="bot-bg flex min-h-screen cursor-pointer flex-col items-center justify-center px-6 text-center text-white"
+      >
+        <RajFace status={live.connecting ? "thinking" : "idle"} name={waiterName} />
+        <p className="mt-6 text-xs uppercase tracking-[0.35em] text-white/40">{settings.restaurantName}</p>
+        {live.connecting ? (
+          <p className="mt-8 animate-pulse text-2xl font-bold text-sky-300">Jaag raha hoon…</p>
+        ) : (
+          <>
+            <p className="mt-8 animate-pulse text-3xl font-black text-primary">👆 Tap to wake me</p>
+            <p className="mt-3 text-white/50">
+              Tap karke <b className="text-white/80">“Hello Bot”</b> boliye — phir bas baat karte raho 🎙️
+            </p>
+          </>
+        )}
+        {liveError && (
+          <p className="mt-6 max-w-xs rounded-lg bg-red-500/15 px-4 py-2 text-sm text-red-300">{liveError}</p>
+        )}
       </div>
+    );
+  }
 
-      <div className="grid gap-6 p-6 lg:grid-cols-[380px_1fr]">
-        {/* left: Raj + transcript + mic */}
-        <div className="flex flex-col">
-          <div className="glass rounded-2xl p-6">
-            <div className="py-4">
-              <RajFace status={status as any} name={settings.aiWaiterName || "Raj"} />
-            </div>
-            {/* LIVE hands-free mode (primary) */}
-            <div className="mt-4 flex flex-col items-center gap-2">
-              {!live.connected && (
-                <div className="flex w-full items-center gap-2">
-                  <select
-                    value={selectedMic}
-                    onChange={(e) => setSelectedMic(e.target.value)}
-                    onFocus={() => micDevices.length === 0 && loadMics()}
-                    className="h-9 flex-1 rounded-lg border border-white/10 bg-white/5 px-2 text-xs text-white/70"
-                  >
-                    {micDevices.length === 0 ? (
-                      <option value="">Default mic (click to choose)</option>
-                    ) : (
-                      micDevices.map((m) => (
-                        <option key={m.id} value={m.id} className="bg-[#0e1426]">
-                          {m.label}
-                        </option>
-                      ))
-                    )}
-                  </select>
-                  <Button size="sm" variant="ghost" onClick={loadMics}>Mics</Button>
-                </div>
-              )}
-              {!live.connected ? (
-                <Button
-                  size="xl"
-                  onClick={startLive}
-                  disabled={live.connecting}
-                  className="rounded-full bg-green-600 hover:bg-green-700"
-                >
-                  <Radio className="h-6 w-6" />
-                  {live.connecting ? "Connect ho raha…" : "👆 Tap karke order shuru karein"}
-                </Button>
-              ) : (
-                <Button size="xl" onClick={live.disconnect} className="rounded-full bg-red-600 hover:bg-red-700">
-                  <PhoneOff className="h-6 w-6" /> Live band karo
-                </Button>
-              )}
-              {live.connected && (
-                <>
-                  <p className="text-center text-sm text-green-300">
-                    🟢 LIVE — bas boliye, button dabane ki zaroorat nahi.
-                    {live.userSpeaking ? " (sun raha hoon…)" : live.rajSpeaking ? " (Raj bol raha…)" : ""}
-                  </p>
-                  <div className="mt-1 rounded-lg bg-white/5 px-3 py-1.5 text-[11px] text-white/50">
-                    <div className="flex items-center gap-2">
-                      <span>mic level:</span>
-                      <div className="h-2 flex-1 overflow-hidden rounded bg-white/10">
-                        <div
-                          className={cn("h-full transition-[width] duration-75", live.micLevel > 8 ? "bg-green-400" : "bg-white/30")}
-                          style={{ width: `${Math.min(100, live.micLevel)}%` }}
-                        />
-                      </div>
-                      <span className="w-8 text-right">{live.micLevel}</span>
-                    </div>
-                    <div className="mt-1 text-center">
-                      mic heard you: <b className={micHeard ? "text-green-400" : "text-red-400"}>{micHeard ? "YES ✓" : "NOT YET ✗"}</b>
-                      {lastEvent ? <span> · {lastEvent}</span> : null}
-                    </div>
-                  </div>
-                </>
-              )}
-              {liveError && (
-                <p className="rounded-lg bg-red-500/15 px-3 py-2 text-center text-xs text-red-300">{liveError}</p>
-              )}
-            </div>
+  // ── ENDED SCREEN ────────────────────────────────────────────────
+  if (ended) {
+    return (
+      <div className="bot-bg flex min-h-screen flex-col items-center justify-center text-center text-white">
+        <div className="text-7xl">🙏</div>
+        <h2 className="mt-4 text-4xl font-black">Dhanyavaad!</h2>
+        <p className="mt-2 text-white/60">Aapka session end ho gaya, table ab free hai.</p>
+        <p className="mt-1 text-white/40">{settings.restaurantName} — phir aaiyega!</p>
+        <button
+          onClick={() => window.location.reload()}
+          className="mt-8 rounded-full bg-primary px-8 py-3 text-lg font-bold text-primary-foreground"
+        >
+          Naya order shuru karein
+        </button>
+      </div>
+    );
+  }
 
-            {/* manual fallback (tap-to-record + text) */}
-            {!live.connected && (
-              <div className="mt-4 border-t border-white/10 pt-3">
-                <p className="mb-2 text-center text-[11px] uppercase tracking-widest text-white/30">ya manually</p>
-                <div className="flex justify-center">
-                  <Button
-                    size="lg"
-                    variant="secondary"
-                    onClick={toggleMic}
-                    disabled={!voice.supported || transcribing}
-                    className={cn("rounded-full", voice.listening && "bg-red-600 hover:bg-red-700 animate-pulse text-white")}
-                  >
-                    {voice.listening ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
-                    {voice.listening ? "Bol diya? Tap to send" : transcribing ? "Samajh raha hoon…" : "Tap to record"}
-                  </Button>
-                </div>
-              </div>
+  // ── ACTIVE — live conversation ──────────────────────────────────
+  const statusText = live.rajSpeaking
+    ? `${waiterName} bol raha hai…`
+    : live.userSpeaking
+    ? "Sun raha hoon…"
+    : thinking || transcribing
+    ? "Soch raha hoon…"
+    : "Boliye, main sun raha hoon 🎙️";
+
+  return (
+    <div className="bot-bg flex min-h-screen flex-col text-white">
+      <header className="flex items-center justify-between border-b border-white/10 px-5 py-3">
+        <div className="flex items-center gap-2.5">
+          <div
+            className={cn(
+              "h-3 w-3 rounded-full",
+              live.rajSpeaking ? "bg-green-400" : live.userSpeaking ? "animate-pulse bg-sky-400" : "bg-primary"
             )}
-            {voice.listening && (
-              <p className="mt-3 text-center text-sm text-red-300">🔴 Recording… boliye, phir button dobara dabao</p>
-            )}
-            {transcribing && (
-              <p className="mt-3 text-center text-sm text-sky-300">Aapki baat samajh raha hoon…</p>
-            )}
-            {voice.error && (
-              <p className="mt-3 rounded-lg bg-red-500/15 px-3 py-2 text-center text-xs text-red-300">{voice.error}</p>
-            )}
-            {!live.connected && !voice.error && !voice.listening && !transcribing && (
-              <p className="mt-2 text-center text-xs text-white/40">
-                Sabse acha: “🎙️ Live Baat” dabao — phone call jaisa, bas boliye. Ya manual mic use karo.
-              </p>
-            )}
+          />
+          <span className="font-bold">{settings.restaurantName}</span>
+          <span className="text-white/40">· Table {tableNumber}</span>
+        </div>
+        <button
+          onClick={live.disconnect}
+          className="rounded-full border border-white/15 px-3 py-1 text-xs text-white/50 hover:bg-white/10"
+        >
+          End
+        </button>
+      </header>
+
+      <div className="grid flex-1 gap-6 p-5 lg:grid-cols-[280px_1fr]">
+        {/* left: orb + status + last few lines */}
+        <div className="flex flex-col items-center">
+          <div className="mt-4">
+            <RajFace status={status as any} name={waiterName} />
           </div>
-
-          {/* transcript */}
-          <div className="glass mt-6 flex-1 rounded-2xl p-4">
-            <h3 className="mb-2 text-sm uppercase tracking-widest text-white/40">Conversation</h3>
-            <div className="max-h-[40vh] space-y-2 overflow-y-auto scrollbar-thin pr-1">
-              {messages.map((m, i) => (
-                <div
-                  key={i}
-                  className={cn(
-                    "rounded-xl px-3 py-2 text-sm",
-                    m.role === "user" ? "ml-6 bg-sky-500/20" : "mr-6 bg-white/5"
-                  )}
-                >
-                  <span className="mr-1 font-bold text-white/50">
-                    {m.role === "user" ? "You" : settings.aiWaiterName || "Raj"}:
-                  </span>
-                  {m.content}
-                </div>
-              ))}
-              {thinking && (
-                <div className="mr-6 flex items-center gap-2 rounded-xl bg-white/5 px-3 py-2 text-sm text-white/50">
-                  <Loader2 className="h-4 w-4 animate-spin" /> soch raha hoon…
-                </div>
-              )}
-              <div ref={transcriptEndRef} />
-            </div>
-            {/* text fallback (still voice-channel; no touch ordering) */}
-            <form onSubmit={submitText} className="mt-3 flex gap-2">
-              <input
-                value={textInput}
-                onChange={(e) => setTextInput(e.target.value)}
-                placeholder="…ya yahan type karke boliye"
-                className="flex-1 rounded-lg bg-white/5 px-3 py-2 text-sm outline-none placeholder:text-white/30"
-              />
-              <Button type="submit" size="sm" variant="secondary">
-                Send
-              </Button>
-            </form>
+          <p className="mt-4 h-5 text-center text-sm text-white/50">{statusText}</p>
+          <div className="mt-6 w-full space-y-2">
+            {messages.slice(-3).map((m, i) => (
+              <div
+                key={i}
+                className={cn(
+                  "rounded-2xl px-4 py-2 text-sm animate-fade-in",
+                  m.role === "user" ? "bg-sky-500/15 text-right" : "bg-white/5"
+                )}
+              >
+                {m.content}
+              </div>
+            ))}
           </div>
         </div>
 
-        {/* right: context screen */}
-        <div className="min-h-[70vh]">
+        {/* right: visual context (cards / order / bill / QR) */}
+        <div className="min-h-[60vh]">
           <ContextScreen
-            mode={ended ? "ended" : mode}
+            mode={mode}
             cardTitle={cardTitle}
             dishes={dishes}
             combos={combos}

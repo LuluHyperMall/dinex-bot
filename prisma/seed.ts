@@ -76,8 +76,8 @@ async function main() {
   // Restaurant settings
   await prisma.restaurantSettings.upsert({
     where: { id: 1 },
-    update: { restaurantName: "Swad Mahal", logoText: "Swad Mahal" },
-    create: { id: 1, restaurantName: "Swad Mahal", logoText: "Swad Mahal" },
+    update: { restaurantName: "Chowzy", logoText: "Chowzy", aiWaiterName: "Dinex Bot" },
+    create: { id: 1, restaurantName: "Chowzy", logoText: "Chowzy", aiWaiterName: "Dinex Bot" },
   });
 
   // Menu items

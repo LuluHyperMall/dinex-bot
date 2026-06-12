@@ -13,8 +13,8 @@ datasource db {
 
 model RestaurantSettings {
   id                    Int      @id @default(1)
-  restaurantName        String   @default("Swad Mahal")
-  logoText              String   @default("Swad Mahal")
+  restaurantName        String   @default("Chowzy")
+  logoText              String   @default("Chowzy")
   adminPin              String   @default("1234")
   gstPercent            Float    @default(5)
   serviceChargePercent  Float    @default(5)
@@ -23,7 +23,7 @@ model RestaurantSettings {
   currency              String   @default("INR")
   currencySymbol        String   @default("₹")
   languagePreference    String   @default("hinglish")
-  aiWaiterName          String   @default("Raj")
+  aiWaiterName          String   @default("Dinex Bot")
   aiHumorLevel          Int      @default(6) // 0-10
   // kitchen urgency thresholds (minutes)
   urgencyWarningMin     Int      @default(10)
