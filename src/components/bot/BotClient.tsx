@@ -321,7 +321,7 @@ export function BotClient({ tableNumber }: { tableNumber: number }) {
   const status = live.connected
     ? live.rajSpeaking
       ? "speaking"
-      : live.userSpeaking
+      : live.talking
       ? "listening"
       : "idle"
     : thinking || transcribing
@@ -349,7 +349,7 @@ export function BotClient({ tableNumber }: { tableNumber: number }) {
           <>
             <p className="mt-8 animate-pulse text-3xl font-black text-primary">👆 Tap to wake me</p>
             <p className="mt-3 text-white/50">
-              Tap karke <b className="text-white/80">“Hello Bot”</b> boliye — phir bas baat karte raho 🎙️
+              Tap karke shuru karo — phir <b className="text-white/80">🎤 button daba ke</b> boliye, chhodo to bhej jayega
             </p>
           </>
         )}
@@ -378,14 +378,12 @@ export function BotClient({ tableNumber }: { tableNumber: number }) {
     );
   }
 
-  // ── ACTIVE — live conversation ──────────────────────────────────
-  const statusText = live.rajSpeaking
+  // ── ACTIVE — live conversation (push-to-talk) ───────────────────
+  const statusText = live.talking
+    ? "🔴 Sun raha hoon… boliye"
+    : live.rajSpeaking
     ? `${waiterName} bol raha hai…`
-    : live.userSpeaking
-    ? "Sun raha hoon…"
-    : thinking || transcribing
-    ? "Soch raha hoon…"
-    : "Boliye, main sun raha hoon 🎙️";
+    : "Button daba ke boliye 👇";
 
   return (
     <div className="bot-bg flex min-h-screen flex-col text-white">
@@ -415,6 +413,33 @@ export function BotClient({ tableNumber }: { tableNumber: number }) {
             <RajFace status={status as any} name={waiterName} />
           </div>
           <p className="mt-4 h-5 text-center text-sm text-white/50">{statusText}</p>
+
+          {/* HOLD TO TALK — mic only live while held (no self-talk possible) */}
+          <button
+            onPointerDown={(e) => {
+              e.preventDefault();
+              if (!live.rajSpeaking) live.startTalking();
+            }}
+            onPointerUp={(e) => {
+              e.preventDefault();
+              if (live.talking) live.stopTalking();
+            }}
+            onPointerLeave={() => {
+              if (live.talking) live.stopTalking();
+            }}
+            disabled={live.rajSpeaking}
+            className={cn(
+              "mt-5 select-none rounded-full px-8 py-5 text-lg font-bold shadow-lg transition-all touch-none",
+              live.talking
+                ? "scale-105 bg-red-600 animate-pulse"
+                : live.rajSpeaking
+                ? "bg-white/10 text-white/40"
+                : "bg-primary text-primary-foreground hover:bg-primary/90"
+            )}
+          >
+            {live.talking ? "🎙️ Bol rahe ho… (chhodo to bhejo)" : live.rajSpeaking ? "Dinex bol raha hai…" : "🎤 Hold karke boliye"}
+          </button>
+
           <div className="mt-6 w-full space-y-2">
             {messages.slice(-3).map((m, i) => (
               <div

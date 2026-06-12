@@ -19,6 +19,7 @@ export function useRealtime(cbs: Cbs) {
   const [connecting, setConnecting] = useState(false);
   const [userSpeaking, setUserSpeaking] = useState(false);
   const [rajSpeaking, setRajSpeaking] = useState(false);
+  const [talking, setTalking] = useState(false);
   const [micLevel, setMicLevel] = useState(0);
 
   const startedRef = useRef(false);
@@ -86,11 +87,14 @@ export function useRealtime(cbs: Cbs) {
       case "response.output_audio_transcript.done":
         if (e.transcript) cbsRef.current.onTranscript?.("assistant", String(e.transcript).trim());
         break;
-      // NOTE: rajSpeaking + mic muting are driven by the actual bot audio level
-      // in the analyser loop below (event-independent, no thrash). response.done
-      // is just a safety to clear the speaking state.
+      // speaking indicator (UI only — mic is push-to-talk controlled)
+      case "response.created":
+      case "output_audio_buffer.started":
+        setRajSpeaking(true);
+        break;
+      case "output_audio_buffer.stopped":
       case "response.done":
-        lastBotSoundRef.current = 0;
+        setRajSpeaking(false);
         break;
       case "response.function_call_arguments.done":
         runToolCall(e.name, e.call_id, e.arguments);
@@ -165,9 +169,11 @@ export function useRealtime(cbs: Cbs) {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints });
       streamRef.current = stream;
       stream.getTracks().forEach((t) => {
-        t.enabled = true;
         pc.addTrack(t, stream);
-        if (t.kind === "audio") micTrackRef.current = t;
+        if (t.kind === "audio") {
+          micTrackRef.current = t;
+          t.enabled = false; // mic stays OFF until the user holds "Talk"
+        }
       });
 
       // mic level meter (diagnostic: is the mic actually capturing audio?)
@@ -191,27 +197,8 @@ export function useRealtime(cbs: Cbs) {
           return Math.sqrt(s / b.length);
         };
         const tick = () => {
-          // mic level (UI)
-          setMicLevel(Math.min(100, Math.round(rms(an, buf) * 300)));
-
-          // bot output level → walkie-talkie gate (mute mic while bot's voice plays)
-          const ra = remoteAnalyserRef.current;
-          if (ra) {
-            const botRms = rms(ra, new Uint8Array(ra.frequencyBinCount));
-            const now = Date.now();
-            if (botRms > 0.02) {
-              lastBotSoundRef.current = now;
-              if (!botSpeakingRef.current) {
-                botSpeakingRef.current = true;
-                setRajSpeaking(true);
-              }
-              if (micTrackRef.current && micTrackRef.current.enabled) micTrackRef.current.enabled = false;
-            } else if (botSpeakingRef.current && now - lastBotSoundRef.current > 600) {
-              botSpeakingRef.current = false;
-              setRajSpeaking(false);
-              if (micTrackRef.current && !micTrackRef.current.enabled) micTrackRef.current.enabled = true;
-            }
-          }
+          // mic level (only meaningful while the user is holding Talk)
+          setMicLevel(micTrackRef.current?.enabled ? Math.min(100, Math.round(rms(an, buf) * 300)) : 0);
           rafRef.current = requestAnimationFrame(tick);
         };
         tick();
@@ -222,24 +209,14 @@ export function useRealtime(cbs: Cbs) {
       dcRef.current = dc;
       dc.onmessage = (m) => handleEvent(m.data);
       dc.onopen = () => {
-        // assert input VAD + transcription on the live session (GA reliability)
+        // PUSH-TO-TALK: disable auto turn detection — we control the mic + commit
+        // manually (mic only live while the user holds the button), so the bot can
+        // never hear its own voice. Eliminates the self-talk loop entirely.
         send({
           type: "session.update",
           session: {
             type: "realtime",
-            audio: {
-              input: {
-                transcription: { model: "whisper-1" },
-                turn_detection: {
-                  type: "server_vad",
-                  threshold: 0.45,
-                  prefix_padding_ms: 300,
-                  silence_duration_ms: 500,
-                  create_response: true,
-                  interrupt_response: true,
-                },
-              },
-            },
+            audio: { input: { transcription: { model: "whisper-1" }, turn_detection: null } },
           },
         });
         // greet immediately
@@ -283,6 +260,22 @@ export function useRealtime(cbs: Cbs) {
     });
   }, []);
 
+  // ── Push-to-talk ──────────────────────────────────────────────
+  const startTalking = useCallback(() => {
+    if (!micTrackRef.current) return;
+    send({ type: "input_audio_buffer.clear" });
+    micTrackRef.current.enabled = true;
+    setTalking(true);
+  }, []);
+
+  const stopTalking = useCallback(() => {
+    if (!micTrackRef.current) return;
+    micTrackRef.current.enabled = false;
+    setTalking(false);
+    send({ type: "input_audio_buffer.commit" });
+    send({ type: "response.create" });
+  }, []);
+
   const disconnect = useCallback(() => {
     try {
       cancelAnimationFrame(rafRef.current);
@@ -313,5 +306,5 @@ export function useRealtime(cbs: Cbs) {
     setMicLevel(0);
   }, []);
 
-  return { connect, disconnect, announce, connected, connecting, userSpeaking, rajSpeaking, micLevel, sessionId: sessionIdRef };
+  return { connect, disconnect, announce, startTalking, stopTalking, connected, connecting, talking, userSpeaking, rajSpeaking, micLevel, sessionId: sessionIdRef };
 }
