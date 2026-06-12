@@ -1,0 +1,24 @@
+# Render.com blueprint — deploy Dinex Bot as a Docker web service with a
+# persistent disk for SQLite. Push this repo to GitHub, then on Render:
+# New → Blueprint → pick this repo. Set OPENAI_API_KEY when prompted.
+services:
+  - type: web
+    name: dinex-bot
+    runtime: docker
+    plan: starter            # has persistent disk + always-on (free plan sleeps & has no disk)
+    healthCheckPath: /
+    envVars:
+      - key: OPENAI_API_KEY
+        sync: false          # set this in the Render dashboard (secret)
+      - key: OPENAI_MODEL
+        value: gpt-4o
+      - key: OPENAI_REALTIME_MODEL
+        value: gpt-realtime
+      - key: DATABASE_URL
+        value: file:/data/dev.db
+      - key: HOST
+        value: 0.0.0.0
+    disk:
+      name: dinex-data
+      mountPath: /data
+      sizeGB: 1

@@ -1,0 +1,90 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: 0 0% 100%;
+  --foreground: 222 47% 11%;
+  --card: 0 0% 100%;
+  --card-foreground: 222 47% 11%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 222 47% 11%;
+  --primary: 24 96% 53%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 210 40% 96%;
+  --secondary-foreground: 222 47% 11%;
+  --muted: 210 40% 96%;
+  --muted-foreground: 215 16% 47%;
+  --accent: 210 40% 96%;
+  --accent-foreground: 222 47% 11%;
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 214 32% 91%;
+  --input: 214 32% 91%;
+  --ring: 24 96% 53%;
+  --radius: 0.75rem;
+}
+
+.dark {
+  --background: 222 47% 6%;
+  --foreground: 210 40% 98%;
+  --card: 222 40% 9%;
+  --card-foreground: 210 40% 98%;
+  --popover: 222 47% 8%;
+  --popover-foreground: 210 40% 98%;
+  --primary: 24 96% 53%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 217 33% 17%;
+  --secondary-foreground: 210 40% 98%;
+  --muted: 217 33% 15%;
+  --muted-foreground: 215 20% 65%;
+  --accent: 217 33% 17%;
+  --accent-foreground: 210 40% 98%;
+  --destructive: 0 72% 51%;
+  --destructive-foreground: 0 0% 98%;
+  --border: 217 33% 20%;
+  --input: 217 33% 20%;
+  --ring: 24 96% 53%;
+}
+
+* {
+  border-color: hsl(var(--border));
+}
+
+body {
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Futuristic bot background */
+.bot-bg {
+  background:
+    radial-gradient(1200px 600px at 50% -10%, rgba(249, 115, 22, 0.18), transparent 60%),
+    radial-gradient(900px 500px at 80% 110%, rgba(56, 189, 248, 0.12), transparent 60%),
+    linear-gradient(180deg, #060a16 0%, #0a1124 100%);
+}
+
+.glass {
+  background: rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.scrollbar-thin::-webkit-scrollbar { width: 8px; height: 8px; }
+.scrollbar-thin::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 8px; }
+.scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
+
+/* Raj orb */
+.raj-orb {
+  background: radial-gradient(circle at 35% 30%, #fb923c, #f97316 40%, #c2410c 75%, #7c2d12 100%);
+  box-shadow: 0 0 60px 10px rgba(249, 115, 22, 0.45), inset 0 0 40px rgba(0,0,0,0.25);
+}
+.raj-orb.listening {
+  background: radial-gradient(circle at 35% 30%, #38bdf8, #0ea5e9 40%, #0369a1 75%, #082f49 100%);
+  box-shadow: 0 0 70px 14px rgba(56, 189, 248, 0.5), inset 0 0 40px rgba(0,0,0,0.25);
+}
+.raj-orb.speaking {
+  background: radial-gradient(circle at 35% 30%, #4ade80, #22c55e 40%, #15803d 75%, #14532d 100%);
+  box-shadow: 0 0 70px 14px rgba(34, 197, 94, 0.5), inset 0 0 40px rgba(0,0,0,0.25);
+}

@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(node --version)",
+      "PowerShell(npm --version)",
+      "Skill(update-config)",
+      "Skill(update-config:*)",
+      "PowerShell(npm install --no-audit --no-fund)"
+    ]
+  }
+}

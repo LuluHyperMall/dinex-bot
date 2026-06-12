@@ -1,0 +1,214 @@
+// Dinex Bot — Prisma schema (SQLite for MVP)
+// Note: SQLite does not support native Prisma enums, so status-like fields are
+// stored as String. Allowed values are defined as TS unions in src/lib/enums.ts.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model RestaurantSettings {
+  id                    Int      @id @default(1)
+  restaurantName        String   @default("Swad Mahal")
+  logoText              String   @default("Swad Mahal")
+  adminPin              String   @default("1234")
+  gstPercent            Float    @default(5)
+  serviceChargePercent  Float    @default(5)
+  upiId                 String   @default("swadmahal@upi")
+  numberOfTables        Int      @default(12)
+  currency              String   @default("INR")
+  currencySymbol        String   @default("₹")
+  languagePreference    String   @default("hinglish")
+  aiWaiterName          String   @default("Raj")
+  aiHumorLevel          Int      @default(6) // 0-10
+  // kitchen urgency thresholds (minutes)
+  urgencyWarningMin     Int      @default(10)
+  urgencyUrgentMin      Int      @default(20)
+  urgencyCriticalMin    Int      @default(30)
+  // email
+  emailAddress          String   @default("")
+  gmailAppPassword      String   @default("")
+  emailReportsEnabled   Boolean  @default(false)
+  updatedAt             DateTime @updatedAt
+  createdAt             DateTime @default(now())
+}
+
+model MenuItem {
+  id              String   @id @default(cuid())
+  nameEn          String
+  nameHi          String   @default("")
+  category        String   @default("Main Course")
+  cuisineType     String   @default("Indian")
+  price           Float    @default(0)
+  isVeg           Boolean  @default(true)
+  description     String   @default("")
+  prepTimeMinutes Int      @default(15)
+  photoUrl        String   @default("")
+  emoji           String   @default("🍽️")
+  available       Boolean  @default(true)
+  spiceLevel      Int      @default(0) // 0-3
+  tags            String   @default("") // comma separated
+  bestseller      Boolean  @default(false)
+  recommended     Boolean  @default(false)
+  totalOrders     Int      @default(0)
+  todayOrders     Int      @default(0)
+  todayDate       String   @default("") // YYYY-MM-DD for todayOrders rollover
+  outOfStock      Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  comboItems ComboItem[]
+  orderItems OrderItem[]
+}
+
+model Combo {
+  id            String   @id @default(cuid())
+  nameEn        String
+  nameHi        String   @default("")
+  description   String   @default("")
+  category      String   @default("Combo")
+  originalPrice Float    @default(0)
+  comboPrice    Float    @default(0)
+  savings       Float    @default(0)
+  photoUrl      String   @default("")
+  emoji         String   @default("🍱")
+  active        Boolean  @default(true)
+  todayOrders   Int      @default(0)
+  totalOrders   Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  items      ComboItem[]
+  orderItems OrderItem[]
+}
+
+model ComboItem {
+  id         String   @id @default(cuid())
+  comboId    String
+  menuItemId String
+  quantity   Int      @default(1)
+  combo      Combo    @relation(fields: [comboId], references: [id], onDelete: Cascade)
+  menuItem   MenuItem @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+}
+
+model TableSession {
+  id            String    @id @default(cuid())
+  tableNumber   Int
+  status        String    @default("ACTIVE") // SessionStatus
+  // running preferences captured during conversation
+  prefVeg       String    @default("") // veg | nonveg | both | ""
+  prefSpice     String    @default("")
+  prefCuisine   String    @default("")
+  partySize     Int       @default(0)
+  allergies     String    @default("")
+  notes         String    @default("")
+  subtotal      Float     @default(0)
+  gstAmount     Float     @default(0)
+  serviceAmount Float     @default(0)
+  total         Float     @default(0)
+  startedAt     DateTime  @default(now())
+  endedAt       DateTime?
+  lastActivity  DateTime  @default(now())
+
+  orders     Order[]
+  payments   Payment[]
+  staffCalls StaffCall[]
+}
+
+model Order {
+  id           String   @id @default(cuid())
+  sessionId    String
+  tableNumber  Int
+  status       String   @default("NEW") // OrderStatus
+  etaMinutes   Int?
+  kitchenNote  String   @default("")
+  specialNote  String   @default("")
+  confirmed    Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  cookingAt    DateTime?
+  readyAt      DateTime?
+  servedAt     DateTime?
+
+  session        TableSession    @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  items          OrderItem[]
+  kitchenUpdates KitchenUpdate[]
+}
+
+model OrderItem {
+  id          String   @id @default(cuid())
+  orderId     String
+  menuItemId  String?
+  comboId     String?
+  nameEn      String
+  nameHi      String   @default("")
+  emoji       String   @default("🍽️")
+  isVeg       Boolean  @default(true)
+  isCombo     Boolean  @default(false)
+  unitPrice   Float    @default(0)
+  quantity    Int      @default(1)
+  status      String   @default("NEW") // OrderStatus (per-item)
+  specialInstructions String @default("")
+  createdAt   DateTime @default(now())
+
+  order    Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  menuItem MenuItem? @relation(fields: [menuItemId], references: [id])
+  combo    Combo?    @relation(fields: [comboId], references: [id])
+}
+
+model KitchenUpdate {
+  id        String   @id @default(cuid())
+  orderId   String
+  type      String   // cooking_started | eta_set | ready | served | delayed | item_unavailable | note | cancelled
+  message   String   @default("")
+  createdAt DateTime @default(now())
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+}
+
+model Payment {
+  id          String   @id @default(cuid())
+  sessionId   String
+  tableNumber Int
+  method      String   // PaymentMethod
+  status      String   @default("PENDING") // PaymentStatus
+  amount      Float    @default(0)
+  reference   String   @default("")
+  createdAt   DateTime @default(now())
+  paidAt      DateTime?
+  session     TableSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+}
+
+model ActivityLog {
+  id          String   @id @default(cuid())
+  type        String   // order.new | kitchen.update | payment.done | staff.call | item.disabled | session.started | session.closed ...
+  message     String
+  tableNumber Int?
+  sessionId   String?
+  createdAt   DateTime @default(now())
+}
+
+model StaffCall {
+  id          String   @id @default(cuid())
+  sessionId   String?
+  tableNumber Int
+  reason      String   @default("Customer requested staff")
+  status      String   @default("PENDING") // PENDING | ACKNOWLEDGED | RESOLVED
+  createdAt   DateTime @default(now())
+  resolvedAt  DateTime?
+  session     TableSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+}
+
+model DailyAnalytics {
+  id            String   @id @default(cuid())
+  date          String   @unique // YYYY-MM-DD
+  revenue       Float    @default(0)
+  orders        Int      @default(0)
+  sessions      Int      @default(0)
+  avgOrderValue Float    @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
