@@ -353,6 +353,7 @@ export function BotClient({ tableNumber }: { tableNumber: number }) {
           )}
         </div>
         <p className="mt-4 text-xs uppercase tracking-[0.3em] text-[#a89f92]">{settings.restaurantName} · Table {tableNumber}</p>
+        <p className="mt-1 text-[10px] text-[#c4bcae]">v4 · hold-to-talk</p>
         {liveError && <p className="mt-4 max-w-xs rounded-lg bg-red-100 px-4 py-2 text-sm text-red-600">{liveError}</p>}
       </div>
     );
@@ -399,14 +400,33 @@ export function BotClient({ tableNumber }: { tableNumber: number }) {
       </header>
 
       <div className="grid flex-1 gap-6 p-5 lg:grid-cols-[300px_1fr]">
-        {/* left: robot face + live speech bubble */}
+        {/* left: robot face + speech bubble + hold-to-talk */}
         <div className="flex flex-col items-center">
           <div className="mt-2">
             <RajFace status={status as any} name={waiterName} />
           </div>
-          <div className="dinex-card mt-5 min-h-[70px] w-full rounded-2xl px-4 py-3 text-center text-[15px] leading-snug text-[#3a352e] animate-fade-in">
-            {lastSaid || "Boliye, main sun raha hoon 🎙️"}
+          <div className="dinex-card mt-5 min-h-[64px] w-full rounded-2xl px-4 py-3 text-center text-[15px] leading-snug text-[#3a352e] animate-fade-in">
+            {lastSaid || "Boliye ke liye button daba ke rakho 👇"}
           </div>
+
+          {/* HOLD TO TALK */}
+          <button
+            onPointerDown={(e) => { e.preventDefault(); if (!live.rajSpeaking) live.startTalking(); }}
+            onPointerUp={(e) => { e.preventDefault(); if (live.talking) live.stopTalking(); }}
+            onPointerLeave={() => { if (live.talking) live.stopTalking(); }}
+            disabled={live.rajSpeaking}
+            className={cn(
+              "mt-5 w-full select-none rounded-2xl py-5 text-lg font-bold shadow-lg transition-all touch-none",
+              live.talking
+                ? "scale-[1.02] bg-red-500 text-white animate-pulse"
+                : live.rajSpeaking
+                ? "bg-black/10 text-[#a89f92]"
+                : "bg-orange-500 text-white hover:bg-orange-600"
+            )}
+          >
+            {live.talking ? "🎙️ Bol rahe ho… (chhodo)" : live.rajSpeaking ? "Dinex bol raha hai…" : "🎤 Hold karke boliye"}
+          </button>
+          <p className="mt-2 text-center text-xs text-[#a89f92]">Button daba ke boliye, chhodo to bhej jayega</p>
         </div>
 
         {/* right: visual context (cards / order / bill / QR) */}

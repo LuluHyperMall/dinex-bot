@@ -23,6 +23,7 @@ export function useRealtime(cbs: Cbs) {
   const [connecting, setConnecting] = useState(false);
   const [userSpeaking, setUserSpeaking] = useState(false);
   const [rajSpeaking, setRajSpeaking] = useState(false);
+  const [talking, setTalking] = useState(false);
 
   const startedRef = useRef(false);
   const pcRef = useRef<RTCPeerConnection | null>(null);
@@ -42,24 +43,19 @@ export function useRealtime(cbs: Cbs) {
     if (dc && dc.readyState === "open") dc.send(JSON.stringify(obj));
   };
 
-  // ── Auto mic gating: mute the mic while the bot is talking, re-open it shortly
-  // after the bot's audio actually stops. (AEC is the 1st line of defense; this
-  // hard-mute is the guaranteed 2nd line — bot can never hear itself → no loop.)
-  const muteMic = () => {
-    clearTimeout(unmuteTimerRef.current);
-    if (micTrackRef.current) micTrackRef.current.enabled = false;
-    // deadlock breaker: if "audio stopped" never arrives, force-open after 12s
-    clearTimeout(watchdogRef.current);
-    watchdogRef.current = setTimeout(() => {
-      if (micTrackRef.current) micTrackRef.current.enabled = true;
-    }, 12000);
+  // ── Push-to-talk: mic only live while the user holds the button ──
+  const startTalking = () => {
+    if (!micTrackRef.current) return;
+    send({ type: "input_audio_buffer.clear" });
+    micTrackRef.current.enabled = true;
+    setTalking(true);
   };
-  const openMicSoon = (delay = 350) => {
-    clearTimeout(watchdogRef.current);
-    clearTimeout(unmuteTimerRef.current);
-    unmuteTimerRef.current = setTimeout(() => {
-      if (micTrackRef.current) micTrackRef.current.enabled = true;
-    }, delay);
+  const stopTalking = () => {
+    if (!micTrackRef.current) return;
+    micTrackRef.current.enabled = false;
+    setTalking(false);
+    send({ type: "input_audio_buffer.commit" });
+    send({ type: "response.create" });
   };
 
   const runToolCall = useCallback(async (toolName: string, callId: string, argsStr: string) => {
@@ -112,16 +108,10 @@ export function useRealtime(cbs: Cbs) {
         case "response.created":
         case "output_audio_buffer.started":
           setRajSpeaking(true);
-          muteMic(); // bot starting/started talking → mic OFF
           break;
         case "output_audio_buffer.stopped":
-          setRajSpeaking(false);
-          openMicSoon(350); // bot's audio actually finished → mic back ON
-          break;
         case "response.done":
           setRajSpeaking(false);
-          // safety unmute in case "output_audio_buffer.stopped" wasn't delivered
-          openMicSoon(1200);
           break;
         case "response.function_call_arguments.done":
           runToolCall(e.name, e.call_id, e.arguments);
@@ -194,32 +184,24 @@ export function useRealtime(cbs: Cbs) {
         streamRef.current = stream;
         stream.getTracks().forEach((t) => {
           pc.addTrack(t, stream);
-          if (t.kind === "audio") micTrackRef.current = t;
+          if (t.kind === "audio") {
+            micTrackRef.current = t;
+            t.enabled = false; // OFF until the user holds "Talk"
+          }
         });
 
         const dc = pc.createDataChannel("oai-events");
         dcRef.current = dc;
         dc.onmessage = (m) => handleEvent(m.data);
         dc.onopen = () => {
-          // hands-free: server VAD detects turns; interrupt_response lets the
-          // guest cut in. AEC keeps the bot from triggering itself.
+          // PUSH-TO-TALK: no auto VAD. Mic is OFF unless the user holds the
+          // button; on release we manually commit + ask for a response, so the
+          // bot can NEVER hear itself → zero self-talk loop on any device.
           send({
             type: "session.update",
             session: {
               type: "realtime",
-              audio: {
-                input: {
-                  transcription: { model: "whisper-1" },
-                  turn_detection: {
-                    type: "server_vad",
-                    threshold: 0.5,
-                    prefix_padding_ms: 300,
-                    silence_duration_ms: 650,
-                    create_response: true,
-                    interrupt_response: true,
-                  },
-                },
-              },
+              audio: { input: { transcription: { model: "whisper-1" }, turn_detection: null } },
             },
           });
           send({
@@ -285,5 +267,5 @@ export function useRealtime(cbs: Cbs) {
     setRajSpeaking(false);
   }, []);
 
-  return { connect, disconnect, announce, connected, connecting, userSpeaking, rajSpeaking, sessionId: sessionIdRef };
+  return { connect, disconnect, announce, startTalking, stopTalking, connected, connecting, talking, userSpeaking, rajSpeaking, sessionId: sessionIdRef };
 }
