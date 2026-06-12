@@ -25,7 +25,25 @@ export function useRealtime(cbs: Cbs) {
   const pcRef = useRef<RTCPeerConnection | null>(null);
   const dcRef = useRef<RTCDataChannel | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const micTrackRef = useRef<MediaStreamTrack | null>(null);
+  const micTimerRef = useRef<any>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  // Mute the mic while the bot is speaking so it never hears (and replies to)
+  // its own voice through the speaker — kills the self-talk loop.
+  const setMicEnabled = (on: boolean) => {
+    if (!micTrackRef.current) return;
+    if (on) {
+      clearTimeout(micTimerRef.current);
+      // small delay so the speaker tail doesn't get captured
+      micTimerRef.current = setTimeout(() => {
+        if (micTrackRef.current) micTrackRef.current.enabled = true;
+      }, 350);
+    } else {
+      clearTimeout(micTimerRef.current);
+      micTrackRef.current.enabled = false;
+    }
+  };
   const acRef = useRef<AudioContext | null>(null);
   const rafRef = useRef<number>(0);
   const sessionIdRef = useRef<string>("");
@@ -82,13 +100,16 @@ export function useRealtime(cbs: Cbs) {
       case "response.output_audio_transcript.done":
         if (e.transcript) cbsRef.current.onTranscript?.("assistant", String(e.transcript).trim());
         break;
+      case "response.created":
       case "output_audio_buffer.started":
       case "response.output_audio.delta":
         setRajSpeaking(true);
+        setMicEnabled(false); // mute mic while bot talks (no self-hearing)
         break;
       case "output_audio_buffer.stopped":
       case "response.done":
         setRajSpeaking(false);
+        setMicEnabled(true); // re-open mic after bot finishes
         break;
       case "response.function_call_arguments.done":
         runToolCall(e.name, e.call_id, e.arguments);
@@ -154,6 +175,7 @@ export function useRealtime(cbs: Cbs) {
       stream.getTracks().forEach((t) => {
         t.enabled = true;
         pc.addTrack(t, stream);
+        if (t.kind === "audio") micTrackRef.current = t;
       });
 
       // mic level meter (diagnostic: is the mic actually capturing audio?)
@@ -248,9 +270,11 @@ export function useRealtime(cbs: Cbs) {
 
   const disconnect = useCallback(() => {
     try {
+      clearTimeout(micTimerRef.current);
       cancelAnimationFrame(rafRef.current);
       acRef.current?.close();
     } catch {}
+    micTrackRef.current = null;
     try {
       dcRef.current?.close();
     } catch {}
