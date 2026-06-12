@@ -97,9 +97,9 @@ export function ComboCard({ combo, index }: { combo: any; index: number }) {
 export function OrderPanel({ items, bill }: { items: any[]; bill: any }) {
   return (
     <div className="dinex-card rounded-2xl p-6 animate-fade-in">
-      <h2 className="text-2xl font-bold text-[#2b2b2b]">🧾 Aapka Order</h2>
+      <h2 className="text-2xl font-bold text-[#2b2b2b]">🧾 Your Order</h2>
       {items.length === 0 ? (
-        <p className="mt-6 text-[#8b8378]">Order abhi khaali hai. Boliye, kya mangwayein? 😊</p>
+        <p className="mt-6 text-[#8b8378]">Your order is empty — just speak to add items.</p>
       ) : (
         <div className="mt-4 space-y-3">
           {items.map((i) => (
@@ -110,7 +110,7 @@ export function OrderPanel({ items, bill }: { items: any[]; bill: any }) {
                   <div className="font-semibold text-[#2b2b2b]">{i.qty}× {i.name}</div>
                   {i.specialInstructions && <div className="text-xs text-amber-600">“{i.specialInstructions}”</div>}
                   <div className="text-xs text-[#a89f92]">
-                    {i.confirmed ? `Kitchen: ${i.orderStatus}` : "Pending confirm"}
+                    {i.confirmed ? `Kitchen: ${i.orderStatus}` : "Awaiting confirmation"}
                     {i.etaMinutes ? ` • ETA ${i.etaMinutes} min` : ""}
                   </div>
                 </div>
@@ -164,7 +164,7 @@ export function BillPanel({ bill }: { bill: any }) {
         </div>
       ) : null}
       <BillSummary bill={bill} />
-      <p className="mt-4 text-center text-sm text-[#8b8378]">Payment ke liye boliye “QR dikhao” 📲</p>
+      <p className="mt-4 text-center text-sm text-[#8b8378]">Say “show QR” to pay 📲</p>
     </div>
   );
 }
@@ -194,7 +194,7 @@ export function KitchenStatusPanel({ items }: { items: any[] }) {
     <div className="dinex-card rounded-2xl p-6 animate-fade-in">
       <h2 className="text-2xl font-bold text-[#2b2b2b]">👨‍🍳 Kitchen Status</h2>
       {confirmed.length === 0 ? (
-        <p className="mt-4 text-[#8b8378]">Abhi koi order kitchen mein nahi gaya.</p>
+        <p className="mt-4 text-[#8b8378]">No orders sent to the kitchen yet.</p>
       ) : (
         <div className="mt-4 space-y-3">
           {confirmed.map((i) => (
@@ -221,8 +221,8 @@ export function StaffPanel({ reason }: { reason?: string }) {
   return (
     <div className="dinex-card rounded-2xl p-8 text-center animate-fade-in">
       <div className="text-6xl">🙋</div>
-      <h2 className="mt-4 text-2xl font-bold text-[#2b2b2b]">Staff bula liya gaya hai</h2>
-      <p className="mt-2 text-[#6b655c]">Koi staff member abhi aapke table par aa raha hai.</p>
+      <h2 className="mt-4 text-2xl font-bold text-[#2b2b2b]">A staff member has been called</h2>
+      <p className="mt-2 text-[#6b655c]">Someone will be at your table shortly.</p>
       {reason && <p className="mt-1 text-sm text-[#a89f92]">“{reason}”</p>}
     </div>
   );

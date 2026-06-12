@@ -344,16 +344,16 @@ export function BotClient({ tableNumber }: { tableNumber: number }) {
       >
         <RajFace status={live.connecting ? "thinking" : "idle"} name={waiterName} />
         <div className="dinex-card mt-7 max-w-sm rounded-3xl px-6 py-5">
-          <p className="text-lg font-bold text-[#2b2b2b]">Namaste! 👋</p>
-          <p className="mt-1 text-[#5b554c]">Main {waiterName} hoon, aapka AI waiter.</p>
+          <p className="text-lg font-bold text-[#2b2b2b]">Namaste 👋</p>
+          <p className="mt-1 text-[#5b554c]">I'm {waiterName}, your AI waiter at {settings.restaurantName}.</p>
           {live.connecting ? (
-            <p className="mt-3 animate-pulse font-bold text-amber-600">Jaag raha hoon…</p>
+            <p className="mt-3 animate-pulse font-bold text-amber-600">Connecting…</p>
           ) : (
-            <p className="mt-3 animate-pulse text-lg font-black text-orange-600">👆 Tap anywhere to start</p>
+            <p className="mt-3 animate-pulse text-lg font-black text-orange-600">👆 Tap anywhere to begin</p>
           )}
         </div>
         <p className="mt-4 text-xs uppercase tracking-[0.3em] text-[#a89f92]">{settings.restaurantName} · Table {tableNumber}</p>
-        <p className="mt-1 text-[10px] text-[#c4bcae]">v4 · hold-to-talk</p>
+        <p className="mt-1 text-[10px] text-[#c4bcae]">v5</p>
         {liveError && <p className="mt-4 max-w-xs rounded-lg bg-red-100 px-4 py-2 text-sm text-red-600">{liveError}</p>}
       </div>
     );
@@ -364,14 +364,14 @@ export function BotClient({ tableNumber }: { tableNumber: number }) {
     return (
       <div className="dinex-bg flex min-h-screen flex-col items-center justify-center text-center">
         <div className="text-7xl">🙏</div>
-        <h2 className="mt-4 text-4xl font-black text-[#2b2b2b]">Dhanyavaad!</h2>
-        <p className="mt-2 text-[#5b554c]">Aapka session end ho gaya, table ab free hai.</p>
-        <p className="mt-1 text-[#a89f92]">{settings.restaurantName} — phir aaiyega!</p>
+        <h2 className="mt-4 text-4xl font-black text-[#2b2b2b]">Thank you!</h2>
+        <p className="mt-2 text-[#5b554c]">Your session has ended — the table is now free.</p>
+        <p className="mt-1 text-[#a89f92]">{settings.restaurantName} — see you again!</p>
         <button
           onClick={() => window.location.reload()}
           className="mt-8 rounded-full bg-orange-500 px-8 py-3 text-lg font-bold text-white shadow-lg"
         >
-          Naya order shuru karein
+          Start new order
         </button>
       </div>
     );
@@ -400,13 +400,18 @@ export function BotClient({ tableNumber }: { tableNumber: number }) {
       </header>
 
       <div className="grid flex-1 gap-6 p-5 lg:grid-cols-[300px_1fr]">
-        {/* left: robot face + speech bubble + hold-to-talk */}
+        {/* left: robot face + live voice animation + hold-to-talk */}
         <div className="flex flex-col items-center">
           <div className="mt-2">
             <RajFace status={status as any} name={waiterName} />
           </div>
-          <div className="dinex-card mt-5 min-h-[64px] w-full rounded-2xl px-4 py-3 text-center text-[15px] leading-snug text-[#3a352e] animate-fade-in">
-            {lastSaid || "Boliye ke liye button daba ke rakho 👇"}
+
+          {/* voice animation (replaces the speech transcript) */}
+          <div className="dinex-card mt-6 w-full rounded-2xl px-5 py-6">
+            <Soundwave state={live.rajSpeaking ? "speaking" : live.talking ? "listening" : "idle"} />
+            <p className="mt-3 text-center text-sm font-medium text-[#8b8378]">
+              {live.rajSpeaking ? "Dinex is speaking…" : live.talking ? "Listening…" : "Hold the button to speak"}
+            </p>
           </div>
 
           {/* HOLD TO TALK */}
@@ -418,15 +423,14 @@ export function BotClient({ tableNumber }: { tableNumber: number }) {
             className={cn(
               "mt-5 w-full select-none rounded-2xl py-5 text-lg font-bold shadow-lg transition-all touch-none",
               live.talking
-                ? "scale-[1.02] bg-red-500 text-white animate-pulse"
+                ? "scale-[1.02] bg-red-500 text-white"
                 : live.rajSpeaking
                 ? "bg-black/10 text-[#a89f92]"
                 : "bg-orange-500 text-white hover:bg-orange-600"
             )}
           >
-            {live.talking ? "🎙️ Bol rahe ho… (chhodo)" : live.rajSpeaking ? "Dinex bol raha hai…" : "🎤 Hold karke boliye"}
+            {live.talking ? "Listening — release to send" : live.rajSpeaking ? "Please wait…" : "🎤 Hold to Speak"}
           </button>
-          <p className="mt-2 text-center text-xs text-[#a89f92]">Button daba ke boliye, chhodo to bhej jayega</p>
         </div>
 
         {/* right: visual context (cards / order / bill / QR) */}
@@ -446,6 +450,29 @@ export function BotClient({ tableNumber }: { tableNumber: number }) {
           />
         </div>
       </div>
+    </div>
+  );
+}
+
+function Soundwave({ state }: { state: "speaking" | "listening" | "idle" }) {
+  const color = state === "speaking" ? "#22c55e" : state === "listening" ? "#0ea5e9" : "#d8cebd";
+  const active = state !== "idle";
+  const heights = [0.45, 0.7, 1, 0.85, 0.55, 0.95, 0.65, 1, 0.5];
+  return (
+    <div className="flex h-16 items-center justify-center gap-1.5">
+      {heights.map((h, i) => (
+        <span
+          key={i}
+          className="eq-bar w-2.5 rounded-full"
+          style={{
+            height: `${Math.round(h * 100)}%`,
+            background: color,
+            animationDelay: `${i * 0.08}s`,
+            animationPlayState: active ? "running" : "paused",
+            opacity: active ? 1 : 0.4,
+          }}
+        />
+      ))}
     </div>
   );
 }
@@ -489,7 +516,7 @@ function ContextScreen({
             <DishCard key={d.id} dish={d} index={i} />
           ))}
         </div>
-        <p className="mt-5 text-center text-[#8b8378]">Boliye “pehla wala add karo” ya “dusra wala chahiye” 🎙️</p>
+        <p className="mt-5 text-center text-[#8b8378]">Say the dish name or number to order 🎙️</p>
       </div>
     );
   }
@@ -503,7 +530,7 @@ function ContextScreen({
             <ComboCard key={c.id} combo={c} index={i} />
           ))}
         </div>
-        <p className="mt-5 text-center text-[#8b8378]">Boliye “ye combo add karo” 🎙️</p>
+        <p className="mt-5 text-center text-[#8b8378]">Say “add this combo” to order 🎙️</p>
       </div>
     );
   }
@@ -520,7 +547,7 @@ function ContextScreen({
             <div className="text-center">
               <div className="text-6xl">✅</div>
               <h3 className="mt-3 text-2xl font-black text-[#2b2b2b]">Payment Successful</h3>
-              <p className="mt-2 text-[#5b554c]">Boliye <b>“haan, session end karo”</b> jab khana ho jaaye — table free ho jayega.</p>
+              <p className="mt-2 text-[#5b554c]">Say <b>“end session”</b> when you're done — the table will be freed.</p>
             </div>
           ) : (
             <>
