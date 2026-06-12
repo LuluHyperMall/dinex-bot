@@ -26,24 +26,10 @@ export function useRealtime(cbs: Cbs) {
   const dcRef = useRef<RTCDataChannel | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const micTrackRef = useRef<MediaStreamTrack | null>(null);
-  const micTimerRef = useRef<any>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
-
-  // Mute the mic while the bot is speaking so it never hears (and replies to)
-  // its own voice through the speaker — kills the self-talk loop.
-  const setMicEnabled = (on: boolean) => {
-    if (!micTrackRef.current) return;
-    if (on) {
-      clearTimeout(micTimerRef.current);
-      // small delay so the speaker tail doesn't get captured
-      micTimerRef.current = setTimeout(() => {
-        if (micTrackRef.current) micTrackRef.current.enabled = true;
-      }, 350);
-    } else {
-      clearTimeout(micTimerRef.current);
-      micTrackRef.current.enabled = false;
-    }
-  };
+  const remoteAnalyserRef = useRef<AnalyserNode | null>(null);
+  const botSpeakingRef = useRef(false);
+  const lastBotSoundRef = useRef(0);
   const acRef = useRef<AudioContext | null>(null);
   const rafRef = useRef<number>(0);
   const sessionIdRef = useRef<string>("");
@@ -100,16 +86,11 @@ export function useRealtime(cbs: Cbs) {
       case "response.output_audio_transcript.done":
         if (e.transcript) cbsRef.current.onTranscript?.("assistant", String(e.transcript).trim());
         break;
-      case "response.created":
-      case "output_audio_buffer.started":
-      case "response.output_audio.delta":
-        setRajSpeaking(true);
-        setMicEnabled(false); // mute mic while bot talks (no self-hearing)
-        break;
-      case "output_audio_buffer.stopped":
+      // NOTE: rajSpeaking + mic muting are driven by the actual bot audio level
+      // in the analyser loop below (event-independent, no thrash). response.done
+      // is just a safety to clear the speaking state.
       case "response.done":
-        setRajSpeaking(false);
-        setMicEnabled(true); // re-open mic after bot finishes
+        lastBotSoundRef.current = 0;
         break;
       case "response.function_call_arguments.done":
         runToolCall(e.name, e.call_id, e.arguments);
@@ -161,6 +142,17 @@ export function useRealtime(cbs: Cbs) {
       pc.ontrack = (ev) => {
         audio.srcObject = ev.streams[0];
         audio.play().catch(() => {});
+        // tap the bot's audio so we can detect when it's actually speaking
+        try {
+          const ac = acRef.current;
+          if (ac) {
+            const src = ac.createMediaStreamSource(ev.streams[0]);
+            const an = ac.createAnalyser();
+            an.fftSize = 512;
+            src.connect(an);
+            remoteAnalyserRef.current = an;
+          }
+        } catch {}
       };
 
       // local mic
@@ -189,14 +181,37 @@ export function useRealtime(cbs: Cbs) {
         an.fftSize = 512;
         srcNode.connect(an);
         const buf = new Uint8Array(an.frequencyBinCount);
-        const tick = () => {
-          an.getByteTimeDomainData(buf);
-          let sum = 0;
-          for (let i = 0; i < buf.length; i++) {
-            const v = (buf[i] - 128) / 128;
-            sum += v * v;
+        const rms = (analyser: AnalyserNode, b: Uint8Array) => {
+          analyser.getByteTimeDomainData(b);
+          let s = 0;
+          for (let i = 0; i < b.length; i++) {
+            const v = (b[i] - 128) / 128;
+            s += v * v;
           }
-          setMicLevel(Math.min(100, Math.round(Math.sqrt(sum / buf.length) * 300)));
+          return Math.sqrt(s / b.length);
+        };
+        const tick = () => {
+          // mic level (UI)
+          setMicLevel(Math.min(100, Math.round(rms(an, buf) * 300)));
+
+          // bot output level → walkie-talkie gate (mute mic while bot's voice plays)
+          const ra = remoteAnalyserRef.current;
+          if (ra) {
+            const botRms = rms(ra, new Uint8Array(ra.frequencyBinCount));
+            const now = Date.now();
+            if (botRms > 0.02) {
+              lastBotSoundRef.current = now;
+              if (!botSpeakingRef.current) {
+                botSpeakingRef.current = true;
+                setRajSpeaking(true);
+              }
+              if (micTrackRef.current && micTrackRef.current.enabled) micTrackRef.current.enabled = false;
+            } else if (botSpeakingRef.current && now - lastBotSoundRef.current > 600) {
+              botSpeakingRef.current = false;
+              setRajSpeaking(false);
+              if (micTrackRef.current && !micTrackRef.current.enabled) micTrackRef.current.enabled = true;
+            }
+          }
           rafRef.current = requestAnimationFrame(tick);
         };
         tick();
@@ -270,11 +285,12 @@ export function useRealtime(cbs: Cbs) {
 
   const disconnect = useCallback(() => {
     try {
-      clearTimeout(micTimerRef.current);
       cancelAnimationFrame(rafRef.current);
       acRef.current?.close();
     } catch {}
     micTrackRef.current = null;
+    remoteAnalyserRef.current = null;
+    botSpeakingRef.current = false;
     try {
       dcRef.current?.close();
     } catch {}
