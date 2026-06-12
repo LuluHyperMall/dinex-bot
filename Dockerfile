@@ -6,9 +6,11 @@ ENV NODE_ENV=production
 # OpenSSL is needed by Prisma
 RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 
-# Install deps (include dev deps — we run via tsx and build with next)
+# Install ALL deps incl. dev — tsx (runtime), prisma CLI, next, tailwind, etc.
+# live in devDependencies and are needed to build AND run, so force --include=dev
+# even though NODE_ENV=production (which would otherwise skip them).
 COPY package.json package-lock.json* ./
-RUN npm ci || npm install
+RUN npm ci --include=dev || npm install --include=dev
 
 # Copy source
 COPY . .
